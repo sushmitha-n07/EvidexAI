@@ -1,0 +1,184 @@
+{
+  "version": "2025.11.23",
+  "law_definitions": {
+    "assault": [
+      {
+        "code": "IPC",
+        "section": "351",
+        "title": "Assault",
+        "elements": ["gesture or preparation", "intention to cause apprehension of criminal force"],
+        "keywords": ["assault", "attack", "hit", "strike", "threaten", "raised hand"],
+        "punishment": "Punishable under IPC 352",
+        "bailable": true,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "352",
+        "title": "Punishment for Assault",
+        "punishment": "Imprisonment up to 3 months, or fine, or both",
+        "bailable": true,
+        "cognizable": true
+      }
+    ],
+    "homicide": [
+      {
+        "code": "IPC",
+        "section": "299",
+        "title": "Culpable Homicide",
+        "elements": ["act causing death", "intention to cause death", "knowledge of likely death"],
+        "keywords": ["homicide", "causing death", "culpable homicide"],
+        "punishment": "See IPC 304",
+        "bailable": false,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "304",
+        "title": "Punishment for Culpable Homicide",
+        "punishment": "Imprisonment for life or up to 10 years and fine",
+        "bailable": false,
+        "cognizable": true
+      }
+    ],
+    "murder": [
+      {
+        "code": "IPC",
+        "section": "300",
+        "title": "Murder Definition",
+        "elements": ["intention to cause death", "knowledge of likely death"],
+        "keywords": ["murder", "killed", "stabbed to death", "fatal blows"],
+        "punishment": "See IPC 302",
+        "bailable": false,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "302",
+        "title": "Punishment for Murder",
+        "punishment": "Death or life imprisonment and fine",
+        "bailable": false,
+        "cognizable": true
+      }
+    ],
+    "robbery": [
+      {
+        "code": "IPC",
+        "section": "390",
+        "title": "Robbery Definition",
+        "elements": ["theft or extortion", "instant fear of death or hurt"],
+        "keywords": ["robbery", "mugging", "snatched by force", "threatened with knife"],
+        "punishment": "See IPC 392",
+        "bailable": false,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "392",
+        "title": "Punishment for Robbery",
+        "punishment": "Rigorous imprisonment up to 10 years and fine",
+        "bailable": false,
+        "cognizable": true
+      }
+    ],
+    "burglary": [
+      {
+        "code": "IPC",
+        "section": "457",
+        "title": "Lurking House-Trespass",
+        "elements": ["house-trespass", "committed by night", "concealment or stealth"],
+        "keywords": ["trespass", "broke into", "house-breaking", "forced entry"],
+        "punishment": "Imprisonment up to 5 years and fine",
+        "bailable": false,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "380",
+        "title": "Theft in Dwelling House",
+        "elements": ["dishonest intention", "move property", "without consent"],
+        "keywords": ["stolen", "theft", "missing items", "valuables"],
+        "punishment": "Imprisonment up to 7 years and fine",
+        "bailable": true,
+        "cognizable": true
+      }
+    ],
+    "arson": [
+      {
+        "code": "IPC",
+        "section": "435",
+        "title": "Mischief by Fire",
+        "elements": ["fire used", "intention to damage property"],
+        "keywords": ["set on fire", "burnt", "arson", "flames"],
+        "punishment": "Imprisonment up to 7 years and fine",
+        "bailable": true,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "436",
+        "title": "Arson in Dwelling House",
+        "elements": ["fire used", "dwelling or worship place"],
+        "keywords": ["house fire", "burnt house", "set ablaze"],
+        "punishment": "Life imprisonment or up to 10 years and fine",
+        "bailable": false,
+        "cognizable": true
+      }
+    ],
+    "vandalism": [
+      {
+        "code": "IPC",
+        "section": "427",
+        "title": "Mischief Causing Damage",
+        "elements": ["intent to cause damage", "damage exceeds ₹50"],
+        "keywords": ["damage", "destroyed", "broke window", "smashed", "graffiti"],
+        "punishment": "Imprisonment up to 2 years, or fine, or both",
+        "bailable": true,
+        "cognizable": true
+      }
+    ],
+    "kidnapping": [
+      {
+        "code": "IPC",
+        "section": "359",
+        "title": "Kidnapping",
+        "elements": ["taking or enticing", "without consent", "from lawful guardianship"],
+        "keywords": ["kidnapped", "abducted", "taken away", "missing child"],
+        "punishment": "See IPC 363",
+        "bailable": true,
+        "cognizable": true
+      },
+      {
+        "code": "IPC",
+        "section": "363",
+        "title": "Punishment for Kidnapping",
+        "punishment": "Imprisonment up to 7 years and fine",
+        "bailable": true,
+        "cognizable": true
+      }
+    ],
+    "fraud": [
+      {
+        "code": "IPC",
+        "section": "420",
+        "title": "Cheating and Fraud",
+        "elements": ["deception", "dishonest inducement", "delivery of property"],
+        "keywords": ["cheated", "fraud", "scam", "fake documents", "money transfer"],
+        "punishment": "Imprisonment up to 7 years and fine",
+        "bailable": true,
+        "cognizable": true
+      }
+    ]
+  },
+  "keyword_to_intent": {
+    "stolen": "burglary",
+    "cheated": "fraud",
+    "hit": "assault",
+    "fire": "arson",
+    "kidnapped": "kidnapping",
+    "murder": "murder",
+    "robbery": "robbery",
+    "damage": "vandalism",
+    "homicide": "homicide"
+  }
+}

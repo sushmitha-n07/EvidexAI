@@ -1,0 +1,11 @@
+{
+  "Homicide": ["dead", "fatal", "deceased", "murder", "homicide", "no pulse", "blood pool"],
+  "Assault": ["head trauma", "injury", "beaten", "attack", "assault", "wounds", "fight"],
+  "Arson": ["fire", "burning", "smoke", "explosion", "blast", "accelerant", "charred"],
+  "Kidnapping": ["abducted", "kidnapped", "missing", "vanished", "hostage", "no contact"],
+  "Burglary": ["break-in", "forced entry", "window shattered", "trespass", "burglary"],
+  "Robbery": ["stolen", "robbed", "cash missing", "threat", "weapon", "demanded"],
+  "Accident": ["crash", "collision", "accident", "fell", "slipped", "airplane crash", "life raft"],
+  "Fraud": ["forged", "fake", "scam", "fraud", "embezzlement", "counterfeit"],
+  "Terrorism": ["bomb", "IED", "mass casualty", "terror", "militant", "attack claimed"]
+}
