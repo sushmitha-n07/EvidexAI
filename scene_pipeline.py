@@ -7,10 +7,12 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
-
+from pipeline.scene_update import SceneUpdate
 from agent.scene_agent import SceneAgent
 from nlp.intent_classifier import IntentClassifier
 from nlp.rag_retriever import find_similar_firs, load_fir_corpus
+from vision.crime_classifier_clip import CrimeClipClassifier
+from PIL import Image
 
 @dataclass
 class TimelineEvent:
@@ -46,6 +48,7 @@ class AnalysisOutput:
     risk_assessment: Dict[str, Any]
     generated_reasoning: str
     processing_timestamp: datetime
+    weapons_detected: List[str] = field(default_factory=list)  # NEW
 
 class BuiltInSceneDetector:
     """Lightweight detector using filename/context heuristics."""
@@ -185,7 +188,8 @@ class BuiltInSceneDetector:
             patterns.append("DIGITAL EVIDENCE: Multiple electronic devices")
         if len([obj for obj in objects if obj["confidence"] > 0.8]) > 3:
             patterns.append("HIGH CONFIDENCE: Multiple reliable detections")
-        return patterns
+            return patterns
+
 
 class ScenePipeline:
     """Comprehensive crime scene analysis pipeline."""
@@ -225,23 +229,206 @@ class ScenePipeline:
         # Scene Agent
         try:
             self.scene_agent = SceneAgent()
-        except Exception as e:
+        except Exception:
             self.scene_agent = None
 
         # Built-in detector
         try:
             self.scene_detector = BuiltInSceneDetector()
-        except Exception as e:
+        except Exception:
             self.scene_detector = None
 
         # Intent Classifier
         try:
             self.intent_classifier = IntentClassifier()
-        except Exception as e:
+        except Exception:
             self.intent_classifier = None
 
         # Load FIR corpus
         try:
             self.corpus = load_fir_corpus("data/firs")
-        except Exception as e:
+        except Exception:
             self.corpus = []
+
+    def _parse_timeline_text(self, fir_text: str) -> List[TimelineEvent]:
+        """
+        Extract simple timeline events from FIR text lines prefixed with '- ' or containing time-like patterns.
+        Returns a list of TimelineEvent objects.
+        """
+        events: List[TimelineEvent] = []
+        if not fir_text:
+            return events
+
+        lines = [ln.strip() for ln in fir_text.splitlines() if ln.strip()]
+        for ln in lines:
+            # Heuristic: lines that start with '-' are considered timeline entries
+            if ln.startswith("- "):
+                # Try to pull a time token if present
+                time_match = re.search(r'\b\d{1,2}:\d{2}\s*(AM|PM|am|pm)?\b', ln)
+                ts = None
+                if time_match:
+                    # We only store the time token; date is not enforced here
+                    ts_token = time_match.group(0)
+                    try:
+                        # Normalize to upper for AM/PM
+                        ts = datetime.strptime(ts_token.upper(), "%I:%M %p")
+                    except Exception:
+                        ts = None
+                events.append(TimelineEvent(
+                    timestamp=ts,
+                    event_type="timeline",
+                    description=re.sub(r'^\-\s*', '', ln),
+                    confidence=0.6,
+                    source="text",
+                    evidence=[]
+                ))
+        return events
+
+    def analyze_scene(self, scene_input: CrimeSceneInput) -> AnalysisOutput:
+        """
+        Integrates:
+        - CLIP classifier for uploaded images → crime_type + confidence
+        - SceneUpdate.analysis_scene for FIR/timeline/evidence findings
+        - Simple timeline parsing from FIR text (lines starting with '- ')
+        Ensures crime_type is never 'Unknown' in display (uses 'Possible crime' when confidence is low).
+        """
+        # 1) Classify images with CLIP
+        crime_type = "Unknown"
+        confidence_score = 0.5
+        image_labels: List[Dict[str, Any]] = []
+
+        try:
+            classifier = CrimeClipClassifier()
+        except Exception as e:
+            # If classifier fails to load, keep graceful degradation
+            image_labels.append({"error": f"Classifier init failed: {str(e)}"})
+            classifier = None
+
+        if classifier and scene_input.image_paths:
+            top_preds = []
+            weapon_vocab = {"knife", "gun", "pistol", "rifle", "bat", "hammer", "axe", "sword"}  # NEW
+
+            for path in scene_input.image_paths:
+                try:
+                    img = Image.open(path).convert("RGB")
+                    preds = classifier.classify_image(img, top_k=1, simple=True)
+                    top_label, top_conf = preds[0]
+                    top_preds.append((top_label, float(top_conf)))
+                    image_labels.append({
+                        "image": os.path.basename(path),
+                        "label": top_label,
+                        "confidence": float(top_conf)
+                    })
+                    
+                    # NEW: check all top-3 predictions for weapons
+                    for lbl, conf in preds:
+                        if lbl.lower() in weapon_vocab:
+                            weapons_found.append(lbl)
+
+                except Exception as e:
+                    image_labels.append({"image": os.path.basename(path), "error": str(e)})
+
+            # Highest-confidence image decides crime_type
+            if top_preds:
+                top_preds.sort(key=lambda x: x[1], reverse=True)
+                crime_type, confidence_score = top_preds[0]
+
+        # 2) Fallback: infer from FIR text if no images or low confidence
+        text = (scene_input.fir_text or "").lower()
+        if confidence_score < 0.6:
+            if any(k in text for k in ["injury", "blood", "violence", "assault", "hit", "attack", "beating"]):
+                crime_type = "Assault"
+                confidence_score = max(confidence_score, 0.6)
+            elif any(k in text for k in ["forced entry", "break-in", "burglary", "trespass", "lock broken", "door forced"]):
+                crime_type = "Burglary"
+                confidence_score = max(confidence_score, 0.6)
+            elif any(k in text for k in ["theft", "stolen", "robbed", "robbery", "snatched"]):
+                crime_type = "Robbery"
+                confidence_score = max(confidence_score, 0.6)
+            elif any(k in text for k in ["vandalism", "damage", "destroyed", "graffiti"]):
+                crime_type = "Vandalism"
+                confidence_score = max(confidence_score, 0.6)
+
+        # 3) Use SceneUpdate for FIR/timeline/evidence summarization
+        update = SceneUpdate(
+            case_id=scene_input.case_id,
+            location=scene_input.location,
+            fir_text=scene_input.fir_text,
+            timeline=scene_input.additional_notes or scene_input.timestamp,  # keep your current mapping
+            evidence=scene_input.image_paths
+        )
+        result = update.analysis_scene()
+
+        # 4) Parse timeline from FIR text (optional, improves your JSON export)
+        timeline_events = self._parse_timeline_text(scene_input.fir_text)
+
+        # 5) Visual evidence from built-in detector (optional enrichment)
+        detector_summary: Dict[str, Any] = {}
+        weapons_found: List[str] = []  # NEW
+        weapon_vocab = {"knife", "gun", "pistol", "rifle", "bat", "hammer", "axe", "sword"}  # NEW
+
+
+        if self.scene_detector and scene_input.image_paths:
+            try:
+                # Run detector on the first image for quick context
+                first_image = scene_input.image_paths[0]
+                detector_summary = self.scene_detector.analyze_scene_image(first_image)
+                # NEW: Extract weapons from detector objects
+                
+                for obj in detector_summary.get("objects", []):
+                    name = str(obj.get("object", "")).lower()
+                    if name in weapon_vocab:
+                        weapons_found.append(obj["object"])
+
+            except Exception as e:
+                detector_summary = {"error": f"Detector failed: {str(e)}"}
+
+        # 6) Final display crime label: never "Unknown"
+        display_type = crime_type if confidence_score >= 0.6 else "Possible crime"
+
+        return AnalysisOutput(
+            case_id=result.get("case_id", scene_input.case_id or "UNKNOWN_CASE"),
+            crime_type=display_type,
+            confidence_score=float(confidence_score),
+            timeline=timeline_events,
+            visual_evidence={
+                "classified_images": image_labels,
+                "detector_summary": detector_summary
+            },
+            text_analysis={
+                "findings": result.get("findings", []),
+                "fir_summary": result.get("fir_summary", "")
+            },
+            similar_cases=[],
+            recommendations=result.get("findings", []),
+            risk_assessment={"overall_risk": "Uncertain"},
+            generated_reasoning="Crime type inferred from CLIP image classification with FIR keyword fallback; FIR summarized via SceneUpdate.",
+            processing_timestamp=datetime.now(),
+            weapons_detected=sorted(set(weapons_found))  # NEW: deduplicate and sort
+        )
+
+    def generate_report(self, analysis: AnalysisOutput) -> str:
+        lines = [
+            f"Case ID: {analysis.case_id}",
+            f"Crime Type: {analysis.crime_type}",
+            f"Confidence Score: {analysis.confidence_score:.2f}",
+            f"Risk Level: {analysis.risk_assessment.get('overall_risk', 'Unknown')}",
+            "",
+            "Timeline Events:",
+        ]
+        for event in analysis.timeline:
+            # timestamp may be None; show safely
+            ts_str = event.timestamp.strftime("%H:%M") if isinstance(event.timestamp, datetime) else "-"
+            lines.append(f"- [{ts_str}] {event.event_type}: {event.description} (Confidence: {event.confidence:.2f})")
+
+        lines.append("")
+        lines.append("Recommendations:")
+        for rec in analysis.recommendations:
+            lines.append(f"- {rec}")
+
+        lines.append("")
+        lines.append("Generated Reasoning:")
+        lines.append(analysis.generated_reasoning)
+
+        return "\n".join(lines)
+    __all__ = ["ScenePipeline", "CrimeSceneInput", "AnalysisOutput"]
